@@ -1,0 +1,110 @@
+---
+title: "Project1 Text Mining"
+author: "Ambra"
+date: "February 26, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chess Tournament
+In this project, you're given a text file with chess tournament results where the information has some structure. Your job is to create an R Markdown file that generates a .CSV file (that could for example be imported into a SQL database) with the following information for all of the players:
+Player's Name, Player's State, Total Number of Points, Player's Pre-Rating, and Average Pre Chess Rating of Opponents.
+For the first player, the information would be:
+Gary Hua, ON, 6.0, 1794, 1605
+1605 was calculated by using the pre-tournament opponents' ratings of 1436, 1563, 1600, 1610, 1649, 1663, 1716, and dividing by the total number of games played.
+
+
+```{r Chess Table}
+
+chess<- readLines("C:\\Users\\ambra\\Desktop\\Data 607\\W4\\tournamentinfo.txt")
+class(chess)
+
+library(stringr)
+
+##Remove headings 
+
+chess<- chess[c(-1:-4)]
+
+
+##Extract player's name
+
+NAME<-str_trim(unlist(str_extract_all(chess, "[[:upper:]]{2,}\\s\\w+(\\s\\w+)?\\s?\\w+?\\s?[[:punct:]]?\\w*")))  
+
+
+##Extract state
+
+state<- unlist(str_extract_all(chess, "(ON|MI|OH)\\s\\|"))
+STATE<- str_trim(unlist(str_replace_all(state, "\\|", "")))
+
+##Extract total number of points
+
+points<- unlist(str_extract_all(chess, "\\|\\d\\.\\d\\s"))
+
+POINTS<- str_trim(unlist(str_replace_all(points,"\\|", "")))
+
+##Extract pre-rating
+
+prerating<- unlist(str_extract_all(chess,"R:\\s?\\s\\d{3,}P?"))
+prerating2<-str_trim(str_replace_all(prerating, "R:\\s?\\s", ""))
+PRE_RATING2<-str_trim(str_replace_all(prerating2, "P$", ""))
+
+PRE_RATING<- sapply(PRE_RATING2, as.numeric)
+
+y<- as.data.frame(chess)
+##Extract opponents for each player
+
+
+opponents<- apply (y, 1, function(x) (unlist(str_extract_all(x,"(W|D|L)( )+\\d{1,3}"))))
+
+##Remove 0 characters from vector
+
+opponents1<- opponents[lapply(opponents,length)>0]
+
+##remove W|D|L
+
+opponentsindex<- str_extract_all(opponents1,"\\d{1,3}")
+library(plyr)
+opponentsdf<- ldply(opponentsindex, rbind)
+opponentsdf1<- sapply(opponentsdf, function(x) as.numeric(as.character(x)))
+
+
+chessdf<- data.frame(cbind(NAME, STATE, POINTS, PRE_RATING))
+
+chessdf["X1"]<-opponentsdf1[,1]
+chessdf["X2"]<-opponentsdf1[,2]
+chessdf["X3"]<-opponentsdf1[,3]
+chessdf["X4"]<-opponentsdf1[,4]
+chessdf["X5"]<-opponentsdf1[,5]
+chessdf["X6"]<-opponentsdf1[,6]
+chessdf["X7"]<-opponentsdf1[,7]
+
+rownames(chessdf)<- seq_len(nrow(chessdf))
+
+
+for (i in 1:nrow(chessdf)){
+  
+        chessdf$X1[i]<-as.numeric(as.character(chessdf$PRE_RATING[chessdf$X1[i]]))
+        chessdf$X2[i]<-as.numeric(as.character(chessdf$PRE_RATING[chessdf$X2[i]]))
+        chessdf$X3[i]<-as.numeric(as.character(chessdf$PRE_RATING[chessdf$X3[i]]))
+        chessdf$X4[i]<-as.numeric(as.character(chessdf$PRE_RATING[chessdf$X4[i]]))
+        chessdf$X5[i]<-as.numeric(as.character(chessdf$PRE_RATING[chessdf$X5[i]]))
+        chessdf$X6[i]<-as.numeric(as.character(chessdf$PRE_RATING[chessdf$X6[i]]))
+        chessdf$X7[i]<-as.numeric(as.character(chessdf$PRE_RATING[chessdf$X7[i]]))
+        
+}
+
+chessdf["AVERAGE_PRERATING"]<-  round(rowMeans(chessdf[, 5:11], na.rm = TRUE ), digits = 0)
+
+library(htmlTable)
+
+htmlTable(chessdf)
+
+finalchessdf<- chessdf[-(5:11)]
+
+write.csv(finalchessdf, file="C:/Users/ambra/Desktop/Data 607/W4/TournamentInfo.csv")
+
+```
+
